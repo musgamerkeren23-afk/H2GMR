@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>H4ll0 Maker</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#1b1033;--sf:#2b1a52;--ln:#43307a;--tx:#f4eeff;--mu:#a99bd0;--ac:#ff5c7a;--cy:#5ee7ff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{background:var(--bg);color:var(--tx);font:16px 'Fredoka',system-ui,sans-serif;display:flex;flex-direction:column}
+h1{font-size:22px;font-weight:600;padding:12px 14px 4px}h1 b{color:var(--ac)}
+main{flex:1;overflow-y:auto;padding:8px 14px 16px}
+.pg{display:none}.pg.on{display:block}
+nav{display:flex;background:var(--sf);border-top:2px solid var(--ln);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{flex:1;background:none;border:0;color:var(--mu);padding:10px 0;font:inherit;font-size:13px}
+nav button.on{color:var(--cy);font-weight:600}
+nav span{display:block;font-size:20px}
+button,select,input{font:inherit;color:var(--tx)}
+.b{background:var(--ac);border:0;border-radius:10px;padding:8px 12px;font-weight:600}
+.b.g{background:var(--ln)}.b.c{background:var(--cy);color:#10082a}
+input,select{background:var(--bg);border:2px solid var(--ln);border-radius:10px;padding:8px;width:100%}
+.card{background:var(--sf);border:2px solid var(--ln);border-radius:14px;padding:12px;margin:10px 0}
+.card h3{font-size:17px}.card p{color:var(--mu);font-size:14px;margin:2px 0 8px}
+.row{display:flex;gap:6px;align-items:center;margin:6px 0;flex-wrap:wrap}.row>*{flex:1;min-width:0}
+.row .b{flex:none}
+canvas{background:#000;border:2px solid var(--ln);border-radius:12px;width:100%;max-width:320px;display:block;margin:0 auto;touch-action:none}
+#toast{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 8px);background:#000;border:2px solid var(--ac);border-radius:12px;padding:10px;display:none;z-index:9;font-size:14px}
+.ov{position:fixed;inset:0;background:var(--bg);z-index:5;display:none;flex-direction:column;align-items:center;padding:calc(env(safe-area-inset-top,0px) + 8px) 10px calc(env(safe-area-inset-bottom,0px) + 10px)}
+.ov.on{display:flex}
+#dp{display:grid;grid-template-columns:repeat(3,64px);gap:6px;margin-top:10px}
+#dp button{height:64px;font-size:24px;background:var(--sf);border:2px solid var(--ln);border-radius:14px;touch-action:none}
+#gr{display:grid;grid-template-columns:repeat(8,1fr);width:min(80vw,300px);aspect-ratio:1;border:2px solid var(--ln);touch-action:none}
+#gr div{border:1px solid #ffffff14}
+#pal{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;width:min(80vw,300px);margin:10px 0}
+#pal div{aspect-ratio:1;border-radius:6px;border:2px solid transparent}#pal .on{border-color:#fff}
+.hint{color:var(--mu);font-size:13px;text-align:center;margin:6px 0}
+</style></head><body>
+<h1>H4ll0 <b>Maker</b></h1>
+<div id="toast"></div>
+<main>
+ <section class="pg on" id="p-main"><p class="hint">Deck resmi dari H4ll0 W0rld</p><div id="l-main"></div></section>
+ <section class="pg" id="p-search"><div class="row"><input id="q" placeholder="Cari judul / kreator…"><button class="b" onclick="search()">Cari</button></div><p class="hint" id="qh">🔥 Trending</p><div id="l-search"></div></section>
+ <section class="pg" id="p-create">
+  <canvas id="ed" width="320" height="480"></canvas>
+  <div class="row"><input id="dt" placeholder="Judul deck" oninput="deck.title=this.value"></div>
+  <div class="row"><button class="b g" onclick="addActor()">＋ Actor</button><button class="b c" onclick="play(deck)">▶ Main</button><button class="b" onclick="upload()">☁ Upload</button></div>
+  <div id="pn"></div>
+ </section>
+ <section class="pg" id="p-acc"><div id="acc"></div></section>
+</main>
+<nav>
+ <button class="on" data-t="main"><span>🏠</span>Main</button>
+ <button data-t="search"><span>🔍</span>Search</button>
+ <button data-t="create"><span>🛠️</span>Create</button>
+ <button data-t="acc"><span>👤</span>Akun</button>
+</nav>
+
+<div class="ov" id="pl"><div class="row" style="width:320px;flex:none"><b id="sc">Skor 0</b><button class="b g" onclick="stop()">✕ Keluar</button></div><canvas id="cv" width="320" height="480"></canvas><div id="dp"><i></i><button data-k="u">▲</button><i></i><button data-k="l">◀</button><button data-k="d">▼</button><button data-k="r">▶</button></div></div>
+<div class="ov" id="pt"><div id="gr"></div><div id="pal"></div><div class="row" style="width:min(80vw,300px);flex:none"><button class="b g" onclick="clr()">Hapus</button><button class="b c" onclick="closePaint()">Selesai</button></div></div>
+
+<script>
+// === ISI DARI SUPABASE > Project Settings > API ===
+const SB_URL='ISI_PROJECT_URL', SB_KEY='ISI_ANON_KEY';
+const sb=SB_URL.startsWith('http')?supabase.createClient(SB_URL,SB_KEY):null;
+const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const PAL=['#0d0d12','#ffffff','#ff4d6d','#ff9f1c','#ffe14d','#3ddc84','#00c2a8','#4dabf7','#4361ee','#9b5de5','#f15bb5','#8d6e63','#adb5bd','#495057','#5ee7ff','#7a3b1e'];
+const blank=()=>'-'.repeat(64), fill=c=>String(c).repeat(64);
+let deck=demo(), sel=null, user=null, pc=1, viewed={};
+
+function demo(){return{title:'Kumpulin Koin',actors:[
+ {n:'Kamu',x:140,y:400,s:32,px:fill(5),role:'player',vx:0,vy:0,rules:[{w:'touch',t:'Koin',a:'score',v:1},{w:'touch',t:'Koin',a:'kill'},{w:'touch',t:'Musuh',a:'lose'}]},
+ {n:'Koin',x:60,y:120,s:24,px:fill(4),role:'npc',vx:0,vy:0,rules:[]},
+ {n:'Musuh',x:200,y:200,s:32,px:fill(2),role:'npc',vx:2,vy:1.5,rules:[]}]}}
+
+// ---------- UI dasar ----------
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',3500)}
+function go(t){document.querySelectorAll('.pg').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+ if(t==='main')list('#l-main',q=>q.eq('official',true));if(t==='search')search();if(t==='create')draw();if(t==='acc')renderAcc()}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>go(b.dataset.t));
+
+// ---------- Daftar deck ----------
+let cache={};
+async function list(el,f,mine){const box=$(el);
+ if(!sb){box.innerHTML=(el==='#l-main'?card({id:'demo',title:demo().title,owner_name:'H4ll0 W0rld',views:0,data:demo()}):'')+'<p class="hint">Supabase belum diisi (lihat SB_URL di kode).</p>';cache.demo=demo();return}
+ box.innerHTML='<p class="hint">Memuat…</p>';
+ let q=sb.from('decks').select('id,title,owner_name,views,data');q=f(q).limit(30);
+ const{data,error}=await q;if(error){box.innerHTML='<p class="hint">ERROR: '+esc(error.message)+'</p>';return}
+ data.forEach(d=>cache[d.id]=d.data);
+ box.innerHTML=data.length?data.map(d=>card(d,mine)).join(''):'<p class="hint">Belum ada deck di sini.</p>'}
+function card(d,mine){cache[d.id]=cache[d.id]||d.data;return`<div class="card"><h3>${esc(d.title)}</h3><p>oleh ${esc(d.owner_name||'anon')} · 👁 ${d.views}</p><div class="row"><button class="b c" onclick="play(cache['${d.id}'],'${d.id}')">▶ Main</button><button class="b g" onclick="remix('${d.id}')">🔀 Remix</button>${mine?`<button class="b" onclick="del('${d.id}')">🗑</button>`:''}</div></div>`}
+function search(){const v=$('#q').value.trim().replace(/[%,()]/g,'');$('#qh').textContent=v?'Hasil: '+v:'🔥 Trending';
+ list('#l-search',q=>{q=q.order('views',{ascending:false});return v?q.or(`title.ilike.%${v}%,owner_name.ilike.%${v}%`):q})}
+function remix(id){deck=JSON.parse(JSON.stringify(cache[id]));deck.title=(deck.title||'Deck')+' (remix)';sel=null;$('#dt').value=deck.title;go('create')}
+async function del(id){if(!confirm('Hapus deck ini?'))return;const{error}=await sb.from('decks').delete().eq('id',id);toast(error?'ERROR: '+error.message:'Deck dihapus');renderAcc()}
+
+// ---------- Akun ----------
+async function initAuth(){if(!sb)return;const{data}=await sb.auth.getSession();user=data.session?.user||null;sb.auth.onAuthStateChange((_,s)=>{user=s?.user||null;renderAcc()})}
+function renderAcc(){const b=$('#acc');
+ if(!user){b.innerHTML=`<div class="card"><h3>Masuk / Daftar</h3><p>Akun dibutuhkan buat upload deck.</p><div class="row"><input id="un" placeholder="Username (buat daftar)"></div><div class="row"><input id="em" type="email" placeholder="Email"></div><div class="row"><input id="pw" type="password" placeholder="Password (min 6)"></div><div class="row"><button class="b c" onclick="auth(0)">Masuk</button><button class="b" onclick="auth(1)">Daftar</button></div></div>`;return}
+ b.innerHTML=`<div class="card"><h3>${esc(user.user_metadata?.username||user.email)}</h3><p>${esc(user.email)}</p><button class="b g" onclick="sb.auth.signOut()">Keluar</button></div><p class="hint">Deck kamu</p><div id="l-mine"></div>`;
+ list('#l-mine',q=>q.eq('owner',user.id).order('created_at',{ascending:false}),true)}
+async function auth(reg){if(!sb)return toast('ERROR: Supabase belum diisi di kode');
+ const email=$('#em').value.trim(),password=$('#pw').value,username=$('#un').value.trim();
+ const r=reg?await sb.auth.signUp({email,password,options:{data:{username:username||email.split('@')[0]}}}):await sb.auth.signInWithPassword({email,password});
+ if(r.error)return toast('ERROR: '+r.error.message);toast(reg&&!r.data.session?'Cek email buat konfirmasi, lalu masuk.':'Berhasil masuk!')}
+async function upload(){
+ const s=sb?(await sb.auth.getSession()).data.session:null;
+ if(!s){toast('ERROR: HTTP 401 Your Account is not login yet or register yet');go('acc');return}
+ const title=(deck.title||'').trim()||prompt('Judul deck?');if(!title)return;deck.title=title;
+ const{error}=await sb.from('decks').insert({title,data:deck,owner:s.user.id,owner_name:s.user.user_metadata?.username||'anon'});
+ toast(error?'ERROR: '+error.message:'✅ Deck berhasil diupload!')}
+
+// ---------- Editor ----------
+const ed=$('#ed'),ec=ed.getContext('2d');
+function sprite(c,a){const u=a.s/8;for(let i=0;i<64;i++){const k=a.px[i];if(k==='-')continue;c.fillStyle=PAL[parseInt(k,16)];c.fillRect(a.x+(i%8)*u,a.y+((i/8)|0)*u,u+.5,u+.5)}}
+function draw(){ec.fillStyle='#14082b';ec.fillRect(0,0,320,480);deck.actors.forEach(a=>sprite(ec,a));
+ if(sel!=null){const a=deck.actors[sel];ec.strokeStyle='#5ee7ff';ec.lineWidth=2;ec.strokeRect(a.x-2,a.y-2,a.s+4,a.s+4)}
+ $('#dt').value=deck.title;panel()}
+function addActor(){deck.actors.push({n:'Actor'+(deck.actors.length+1),x:140,y:220,s:32,px:fill(pc=Math.floor(Math.random()*14)+1),role:'npc',vx:0,vy:0,rules:[]});sel=deck.actors.length-1;draw()}
+let drag=null;
+const pos=e=>{const r=ed.getBoundingClientRect();return[(e.clientX-r.left)*320/r.width,(e.clientY-r.top)*480/r.height]};
+ed.onpointerdown=e=>{const[x,y]=pos(e);sel=null;for(let i=deck.actors.length-1;i>=0;i--){const a=deck.actors[i];if(x>=a.x&&x<=a.x+a.s&&y>=a.y&&y<=a.y+a.s){sel=i;drag=[x-a.x,y-a.y];break}}ed.setPointerCapture(e.pointerId);draw()};
+ed.onpointermove=e=>{if(!drag||sel==null)return;const[x,y]=pos(e),a=deck.actors[sel];a.x=Math.max(0,Math.min(320-a.s,x-drag[0]));a.y=Math.max(0,Math.min(480-a.s,y-drag[1]));draw()};
+ed.onpointerup=()=>drag=null;
+const W=[['start','Saat mulai'],['tap','Saat diketuk'],['touch','Nabrak…'],['every','Tiap … detik']];
+const AC=[['score','+ Skor'],['kill','Hapus yang ditabrak'],['die','Hapus diri'],['win','Menang'],['lose','Kalah'],['say','Tampilkan teks']];
+const opt=(l,v)=>l.map(o=>`<option value="${o[0]}"${o[0]===v?' selected':''}>${o[1]}</option>`).join('');
+function panel(){const p=$('#pn');if(sel==null){p.innerHTML='<p class="hint">Ketuk actor di canvas buat mengatur. Geser buat memindahkan.</p>';return}
+ const a=deck.actors[sel];
+ p.innerHTML=`<div class="card"><div class="row"><input value="${esc(a.n)}" oninput="ac('n',this.value)"><select onchange="ac('role',this.value)">${opt([['player','Pemain (dikontrol)'],['npc','Objek biasa']],a.role)}</select></div>
+ <div class="row">Ukuran<input type="range" min="16" max="96" step="8" value="${a.s}" oninput="ac('s',+this.value,1)"></div>
+ <div class="row">Gerak X<input type="number" step=".5" value="${a.vx}" oninput="ac('vx',+this.value)">Y<input type="number" step=".5" value="${a.vy}" oninput="ac('vy',+this.value)"></div>
+ <div class="row"><button class="b c" onclick="openPaint()">🎨 Gambar</button><button class="b" onclick="delActor()">🗑 Hapus</button></div>
+ <p class="hint">Rules</p>${a.rules.map((r,i)=>`<div class="row"><select onchange="rl(${i},'w',this.value)">${opt(W,r.w)}</select>${r.w==='touch'||r.w==='every'?`<input placeholder="${r.w==='every'?'detik':'nama actor'}" value="${esc(r.t)}" oninput="rl(${i},'t',this.value,1)">`:''}<select onchange="rl(${i},'a',this.value)">${opt(AC,r.a)}</select>${r.a==='score'||r.a==='say'?`<input placeholder="${r.a==='say'?'teks':'jumlah'}" value="${esc(r.v)}" oninput="rl(${i},'v',this.value,1)">`:''}<button class="b g" onclick="a_.rules.splice(${i},1);draw()">✕</button></div>`).join('')}
+ <button class="b g" onclick="deck.actors[sel].rules.push({w:'touch',t:'',a:'score',v:1});panel()">＋ Rule</button></div>`}
+const ac=(k,v,r)=>{deck.actors[sel][k]=v;r?draw():ec&&(draw2())},draw2=()=>{ec.fillStyle='#14082b';ec.fillRect(0,0,320,480);deck.actors.forEach(a=>sprite(ec,a))};
+const rl=(i,k,v,quiet)=>{deck.actors[sel].rules[i][k]=v;if(!quiet)panel()};
+Object.defineProperty(window,'a_',{get:()=>deck.actors[sel]});
+function delActor(){deck.actors.splice(sel,1);sel=null;draw()}
+
+// ---------- Pixel painter ----------
+function openPaint(){const g=$('#gr');g.innerHTML='';for(let i=0;i<64;i++){const d=document.createElement('div');d.dataset.i=i;g.appendChild(d)}
+ $('#pal').innerHTML=PAL.map((c,i)=>`<div data-c="${i.toString(16)}" style="background:${c}"></div>`).join('');paintUI();$('#pt').classList.add('on')}
+function paintUI(){const a=deck.actors[sel];[...$('#gr').children].forEach((d,i)=>d.style.background=a.px[i]==='-'?'transparent':PAL[parseInt(a.px[i],16)]);[...$('#pal').children].forEach(d=>d.classList.toggle('on',d.dataset.c===pc.toString(16)))}
+function setPx(e){const d=document.elementFromPoint(e.clientX,e.clientY);if(!d||d.parentNode!==$('#gr'))return;const a=deck.actors[sel],i=+d.dataset.i;a.px=a.px.slice(0,i)+pc.toString(16)+a.px.slice(i+1);paintUI()}
+$('#gr').onpointerdown=setPx;$('#gr').onpointermove=e=>{if(e.buttons)setPx(e)};
+$('#pal').onclick=e=>{if(e.target.dataset.c){pc=parseInt(e.target.dataset.c,16);paintUI()}};
+const clr=()=>{deck.actors[sel].px=blank();paintUI()},closePaint=()=>{$('#pt').classList.remove('on');draw()};
+
+// ---------- Mesin game ----------
+let raf=null;const keys={l:0,r:0,u:0,d:0};
+function stop(){cancelAnimationFrame(raf);$('#pl').classList.remove('on')}
+function play(d,id){const A=JSON.parse(JSON.stringify(d.actors));let score=0,msg='',end=null,t0=performance.now();const c=$('#cv').getContext('2d');
+ if(id&&sb&&!viewed[id]){viewed[id]=1;sb.rpc('add_view',{deck_id:id})}
+ const run=(a,w,o)=>a.rules.forEach(r=>{if(r.w!==w||(w==='touch'&&r.t!==o.n))return;
+  if(r.a==='score')score+=+r.v||1;if(r.a==='kill'&&o)o.dead=1;if(r.a==='die')a.dead=1;if(r.a==='win')end='MENANG 🎉';if(r.a==='lose')end='KALAH 💀';if(r.a==='say')msg=r.v});
+ A.forEach(a=>{a.tm=0;run(a,'start')});$('#pl').classList.add('on');
+ $('#cv').onpointerdown=e=>{const r=$('#cv').getBoundingClientRect(),x=(e.clientX-r.left)*320/r.width,y=(e.clientY-r.top)*480/r.height;A.forEach(a=>{if(!a.dead&&x>=a.x&&x<=a.x+a.s&&y>=a.y&&y<=a.y+a.s)run(a,'tap')})};
+ let last=t0;
+ (function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;
+  A.forEach(a=>{if(a.dead)return;
+   if(a.role==='player'){a.x+=(keys.r-keys.l)*3.5;a.y+=(keys.d-keys.u)*3.5}
+   a.x+=a.vx;a.y+=a.vy;
+   if(a.x<0||a.x>320-a.s){a.vx*=-1;a.x=Math.max(0,Math.min(320-a.s,a.x))}
+   if(a.y<0||a.y>480-a.s){a.vy*=-1;a.y=Math.max(0,Math.min(480-a.s,a.y))}
+   a.tm+=dt;a.rules.forEach(r=>{if(r.w==='every'&&a.tm>=(+r.t||1)){a.tm=0;run(a,'every')}})});
+  A.forEach(a=>A.forEach(b=>{if(a!==b&&!a.dead&&!b.dead&&a.x<b.x+b.s&&a.x+a.s>b.x&&a.y<b.y+b.s&&a.y+a.s>b.y)run(a,'touch',b)}));
+  c.fillStyle='#14082b';c.fillRect(0,0,320,480);A.forEach(a=>{if(!a.dead)sprite(c,a)});
+  $('#sc').textContent='Skor '+score;
+  c.textAlign='center';c.font='600 22px Fredoka,sans-serif';
+  if(msg){c.fillStyle='#fff';c.fillText(msg,160,40)}
+  if(end){c.fillStyle='rgba(0,0,0,.6)';c.fillRect(0,190,320,100);c.fillStyle='#fff';c.font='600 32px Fredoka,sans-serif';c.fillText(end,160,250);return}
+  raf=requestAnimationFrame(loop)})(t0)}
+document.querySelectorAll('#dp button').forEach(b=>{const k=b.dataset.k;b.onpointerdown=()=>keys[k]=1;['pointerup','pointerleave','pointercancel'].forEach(ev=>b['on'+ev]=()=>keys[k]=0)});
+addEventListener('keydown',e=>{const m={ArrowLeft:'l',a:'l',ArrowRight:'r',d:'r',ArrowUp:'u',w:'u',ArrowDown:'d',s:'d'}[e.key];if(m)keys[m]=1});
+addEventListener('keyup',e=>{const m={ArrowLeft:'l',a:'l',ArrowRight:'r',d:'r',ArrowUp:'u',w:'u',ArrowDown:'d',s:'d'}[e.key];if(m)keys[m]=0});
+
+initAuth();go('main');
+</script></body></html>
